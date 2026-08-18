@@ -12,6 +12,8 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/FloatStamped.msg"
+  "msg/PersonDetection.msg"
+  "msg/PersonDetections.msg"
   DEPENDENCIES std_msgs
 )
 
