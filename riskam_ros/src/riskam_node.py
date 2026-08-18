@@ -79,7 +79,7 @@ from riskam.score import (
     W_POSITION_EMPIRICAL_DEFAULT,
     W_PROXIMITY_EMPIRICAL_DEFAULT,
 )
-from riskam_msgs.msg import FloatStamped
+from riskam_msgs.msg import FloatStamped, PersonDetection, PersonDetections
 
 
 class RiskAM(Node):
@@ -215,6 +215,9 @@ class RiskAM(Node):
         self.approach_pub = self.create_publisher(FloatStamped, "/riskam/approach", 10)
         self.annotated_img_pub = self.create_publisher(Image, "/riskam/annotated_image", 10)
         self.diag_pub = self.create_publisher(DiagnosticArray, "/riskam/diagnostics", 10)
+        self.detections_pub = self.create_publisher(
+            PersonDetections, "/riskam/person_detections", 10
+        )
 
         # ── Processing thread ─────────────────────────────────────────────────
         self._stop_event = threading.Event()
@@ -307,16 +310,24 @@ class RiskAM(Node):
         )
 
         # ── Feature extraction via the sub-score contract ─────────────────────
-        result = featextr.extract(
+        # Using the following two calls back to back instead of the standard
+        # featextr.extract() to access the keypoints from the first one's output.
+        primitives = featextr.extract_primitives(
             FrameInputs(rgb=cv_image, depth_m=depth_image_m, cmd_vel=cmd_vel),
             d_safe=self.d_safe,
             depth_near_clip_m=self.depth_near_clip_m,
             near_clip_bbox_min_frac=self.near_clip_bbox_min_frac,
             near_clip_valid_frac_max=self.near_clip_valid_frac_max,
+            track_bboxes=True,
+        )
+        result = featextr.extract_features(
+            primitives,
+            image_shape=cv_image.shape[:2],
+            cmd_vel=cmd_vel,
+            d_safe=self.d_safe,
             gaze_sigma_yaw=self.gaze_sigma_yaw,
             gaze_sigma_pitch=self.gaze_sigma_pitch,
             gaze_frontal_pitch_ratio=self.gaze_frontal_pitch_ratio,
-            track_bboxes=True,
         )
 
         # ── Risk scoring ──────────────────────────────────────────────────────
@@ -398,6 +409,7 @@ class RiskAM(Node):
         self.gaze_pub.publish(_float_stamped(header, gaze_sub))
         self.x_pose_pub.publish(_float_stamped(header, x_pose_sub))
         self.approach_pub.publish(_float_stamped(header, approach_sub))
+        self._publish_detections(header, primitives)
 
         if self.visualize_image:
             self.annotated_img_pub.publish(self.bridge.cv2_to_imgmsg(annotated))
@@ -415,6 +427,33 @@ class RiskAM(Node):
             kin_risk=kin_risk,
             kin_status=kin_status,
         )
+
+    def _publish_detections(self, header, primitives) -> None:
+        """Publish the detector's per-person output for downstream consumers.
+
+        Nothing is computed here: every field is already in hand from the
+        feature-extraction pass, and this only reshapes it. Keypoints arrive
+        as (N, 17, 2) and go out flattened, so keypoint i of a person sits at
+        (keypoints[2*i], keypoints[2*i + 1]).
+        """
+        msg = PersonDetections()
+        msg.header = header
+        keypoints = primitives.keypoints_np
+
+        for i, bbox in enumerate(primitives.human_bboxes):
+            det = PersonDetection()
+            track_id = primitives.track_ids[i]
+            # ByteTrack yields None for a detection it could not associate;
+            # the wire format uses -1 so the field stays a plain int32.
+            det.track_id = -1 if track_id is None else int(track_id)
+            det.bbox = np.asarray(bbox, dtype=np.int32)
+            if keypoints is not None and i < len(keypoints):
+                det.keypoints = keypoints[i].reshape(-1).astype(np.float32)
+            # else: the field stays all-zero, which the message documents as
+            # "the pose model produced no keypoints for this person".
+            msg.detections.append(det)
+
+        self.detections_pub.publish(msg)
 
     def _publish_diagnostics(
         self,
