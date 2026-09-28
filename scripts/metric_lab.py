@@ -41,7 +41,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.append(str(Path(__file__).parent.parent))  # repo root (package = false)
+sys.path.append(str(Path(__file__).parent.parent / "riskam"))  # riskam ROS package dir (package = false)
 
 from riskam.data.cs_robocup_2023 import (
     CSRobocup2023DepthIndex,

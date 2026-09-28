@@ -2,7 +2,7 @@
 
 How to read the annotated overlay published on `/riskam/annotated_image` (live)
 or written to `test_results/videos/*_risk.avi` (offline). Implemented in
-`riskam/visualization.py` (`visualize_risk`).
+`riskam/riskam/visualization.py` (`visualize_risk`).
 
 ---
 

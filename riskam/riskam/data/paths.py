@@ -4,9 +4,11 @@ data.paths
 The file and directory paths to various datasets.
 """
 
+import os
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).parent.parent.parent
+# riskam/riskam/data/paths.py -> the repository root is four levels up.
+ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
 # Dataset names
@@ -21,8 +23,12 @@ ROS_DATA_DIR = ROOT_DIR / "ros_datasets"
 # The dir of datasets used for ML
 ML_DATA_DIR = ROOT_DIR / "ml_datasets"
 
-# The ML models
-ML_MODELS_DIR = ROOT_DIR / "ml_models"
+# The ML models. Resolved relative to the repository when riskam runs from
+# source; an installed copy (colcon install prefix, conda/Pixi environment)
+# has no ml_models/ next to it, so deployments point RISKAM_ML_MODELS_DIR at
+# a directory holding yolo11n-pose.pt. If the file is absent, ultralytics
+# downloads it into that directory on first use.
+ML_MODELS_DIR = Path(os.environ.get("RISKAM_ML_MODELS_DIR", ROOT_DIR / "ml_models"))
 
 # The ROS datasets
 CS_ROBOCUP_2023_ROS_DIR = ROS_DATA_DIR / "cs_robocup_2023"

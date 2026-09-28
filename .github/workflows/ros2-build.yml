@@ -1,0 +1,64 @@
+# Verifies the CoreSense Pixi-channel preconditions on every push: the four
+# ROS 2 packages build on Jazzy and Kilted from their package.xml dependencies,
+# and they build as conda packages with pixi-build-ros (the channel's pipeline).
+name: ROS 2 build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  colcon:
+    name: colcon (${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    container: ros:${{ matrix.distro }}-ros-base
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [jazzy, kilted]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src/risk-awareness-module
+      - name: Resolve package.xml dependencies with rosdep
+        run: |
+          apt-get update
+          rosdep update --rosdistro "$ROS_DISTRO"
+          # The ML runtime (pip keys: torchvision, ultralytics) is not needed to build.
+          rosdep install --from-paths src --ignore-src -y \
+            --skip-keys "python3-torchvision-pip python3-ultralytics-pip"
+      - name: colcon build
+        shell: bash
+        run: |
+          source /opt/ros/$ROS_DISTRO/setup.bash
+          colcon build --event-handlers console_cohesion+
+      - name: Installed packages are discoverable and importable
+        shell: bash
+        run: |
+          source install/setup.bash
+          test "$(ros2 pkg list | grep -cE '^riskam(_msgs|_ros|_bringup)?$')" = 4
+          ros2 interface show riskam_msgs/msg/FloatStamped
+          python3 -c "import riskam, riskam.score, riskam.kinematics"
+          ros2 launch riskam_bringup riskam.launch.py --print
+
+  pixi:
+    name: pixi-build-ros (jazzy, linux-64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          run-install: false
+      - name: Build the workspace environment (all four packages from source)
+        run: pixi install
+      - name: Installed packages are discoverable and importable
+        run: |
+          test "$(pixi run ros2 pkg list | grep -cE '^riskam(_msgs|_ros|_bringup)?$')" = 4
+          pixi run python -c "import riskam, riskam.score, riskam.kinematics"
+          pixi run ros2 launch riskam_bringup riskam.launch.py --print
+      - name: Build the conda packages
+        run: |
+          pixi publish --target-channel ./output
+          test "$(find output -name '*.conda' | tee /dev/stderr | wc -l)" = 4

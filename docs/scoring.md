@@ -16,7 +16,7 @@ document describes the **currently deployed** score.
 ## Per-person risk
 
 For each detected person, the instantaneous risk is a weighted sum of four
-sub-scores (`riskam/score.py`):
+sub-scores (`riskam/riskam/score.py`):
 
 ```
 risk_person = w_proximity · proximity
@@ -38,7 +38,7 @@ and a calibrated default will come from the ablation study.
 
 ## Sub-scores
 
-### proximity — `riskam/ml/depth.py`, `subscores.compute_proximity`
+### proximity — `riskam/riskam/ml/depth.py`, `subscores.compute_proximity`
 
 Absolute-depth-calibrated, replacing the prototype's MiDaS relative depth (which
 was not a stable proximity proxy — see [`design-rationale.md`](design-rationale.md), F1).
@@ -57,7 +57,7 @@ values and for how missing depth in a bbox is resolved (near-clip fallback).
 behaves identically whether depths were computed fresh or loaded from the
 feature cache.
 
-### gaze — `riskam/ml/humandet.py`, `subscores.compute_gaze`
+### gaze — `riskam/riskam/ml/humandet.py`, `subscores.compute_gaze`
 
 Awareness proxy from YOLO11-Pose keypoints; **no extra model**. Two algorithms
 are selectable via `gaze_scores(..., algorithm=...)`:
@@ -104,7 +104,7 @@ the summariser ranks both side by side.
   effectively stationary, score is the legacy centre-offset heuristic
   (`1 − offset²`: 1 at image centre, 0 at the edges).
 
-### approach — `riskam/ml/humandet.py`, `subscores.compute_approach`
+### approach — `riskam/riskam/ml/humandet.py`, `subscores.compute_approach`
 
 Temporal velocity per tracked person (addresses F6 — a person walking away poses
 less collision risk than a stationary one at the same distance). Once ByteTrack
@@ -124,7 +124,7 @@ Status is `UNAVAILABLE` when no track has enough history to be informative.
 ## Scene aggregation
 
 `RiskScorer.score()` combines per-person risks into a single scene risk
-(`riskam/score.py`):
+(`riskam/riskam/score.py`):
 
 1. **Temporal smoothing.** Each person's instantaneous risk is averaged over the
    last `n_frames_aggregate` frames (default `5`), keyed by ByteTrack ID — so the

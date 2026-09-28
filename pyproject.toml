@@ -38,4 +38,4 @@ experiments = [
 package = false
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["riskam"]  # the riskam ROS package dir holds the importable package

@@ -2,9 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>riskam_msgs</name>
-  <version>0.0.1</version>
+  <version>1.0.0</version>
   <description>Contains Custom Message Types for RiskAM Ros2 Integration</description>
-  <maintainer email="r.adam-1@tudelft.nl">ros</maintainer>
+  <maintainer email="jan.zahalka@cvut.cz">Jan Zahálka</maintainer>
+  <author email="r.adam-1@tudelft.nl">Richard Adam</author>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

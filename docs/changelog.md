@@ -9,6 +9,81 @@ Item codes (T1.x / T2.x / T3.x) refer to the original improvement-plan roadmap.
 
 ---
 
+## 2026-09-28 — ROS 2 Jazzy/Kilted builds and the CoreSense Pixi channel workflow
+
+The CoreSense SW coordinator's preconditions for the CoreSense Pixi channel:
+repository in the `CoreSenseEU` organisation (it is), public (it is), and
+packages that build on ROS 2 Jazzy or Kilted. The tree said "Rolling-tested;
+distro-agnostic in principle"; making the third condition true exposed
+packaging faults that had been masked by running the library from source.
+
+- **`riskam` (ament_python) never installed an importable `riskam`.**
+  The ROS package directory *was* the Python package, so `riskam/setup.py`'s
+  `find_packages()` shipped top-level `ml` and `data` packages and no
+  `riskam`; the earlier smoke test papered over it with
+  `PYTHONPATH=/workspace`. The library now sits in the canonical ROS 2 layout,
+  `riskam/riskam/` (ROS package directory / importable package), the only
+  layout that plain `colcon build`, `colcon build --symlink-install` and the
+  Pixi/conda build all handle (a `package_dir` indirection was tried first and
+  breaks colcon's symlink-install). `setup.py` installs the ament resource
+  marker and `package.xml` and declares no `install_requires` beyond
+  setuptools. Consequences for the offline toolchain: pytest's `pythonpath`
+  and the scripts' `sys.path` line point at `riskam/`; repository-root paths
+  inside the library go through `riskam.data.paths.ROOT_DIR`; file
+  references in the docs read `riskam/riskam/...`.
+- **`riskam/package.xml` was rejected by rosdep** (`build_type` outside
+  `<export>` in a format-3 manifest), so `rosdep install` failed for the whole
+  workspace. Fixed; version aligned to 1.0.0.
+- **Dependency manifests made complete and honest.** Every runtime import is
+  now a rosdep key in `package.xml` (`riskam`: numpy, OpenCV, yaml, PIL,
+  matplotlib, seaborn, sklearn, tqdm, and the pip keys
+  `python3-torchvision-pip` + `python3-ultralytics-pip`, since Ubuntu 24.04
+  packages no torch;
+  `riskam_ros`: `riskam`, `riskam_msgs`, rclpy, cv_bridge, message_filters,
+  sensor/geometry/diagnostic msgs, rosbag2_py, rosbag2_storage_mcap;
+  `riskam_bringup`: `riskam_ros`, ros2launch, launch, launch_ros,
+  ament_index_python). Dropped: the dead `nav_msgs` dependency, and the hard
+  `realsense2_camera` build dependency of `riskam_bringup`, whose launch file
+  never used it and which RoboStack does not ship for Kilted. CMake `find_package`
+  calls for packages the CMake code never used (OpenCV, cv_bridge, rclpy,
+  geometry_msgs) are gone, so the ament_cmake packages configure in a minimal
+  environment.
+- **Pixi manifests** following the CoreSense release tutorial: a workspace
+  `pixi.toml` (coresense-jazzy + robostack-jazzy + conda-forge, linux-64) and a
+  `pixi.toml` next to each `package.xml` for `pixi-build-ros`. `riskam/pixi.toml`
+  maps the rosdep keys the backend does not know (torchvision, ultralytics,
+  tqdm, seaborn) to conda-forge and adds the two runtime dependencies without
+  a rosdep key, `pytorch` and `lap` (ByteTrack's solver, which ultralytics
+  would otherwise pip-install at runtime). Kilted is the documented one-word
+  swap in the root manifest.
+- **Package metadata.** Maintainer set to Jan Zahálka (Czech Technical
+  University in Prague) in all four manifests, with the original ROS
+  integration author kept as `<author>`; `riskam_msgs` moves to 1.0.0 so the
+  four packages share one release version, which is what the Pixi channel
+  keys on. The README license section now states what the manifests do:
+  library, tooling and docs MIT; the three TU Delft ROS integration packages
+  Apache-2.0, unchanged.
+- **`RISKAM_ML_MODELS_DIR`** — an installed copy of `riskam` has no
+  `ml_models/` next to it; the variable points the node at the YOLO weights
+  (ultralytics downloads them there if missing).
+- **Clean shutdown of both executables.** `riskam_bagger` stopped with SIGINT
+  exited without closing the rosbag2 writer; on Jazzy that leaves an empty
+  `.mcap` and no `metadata.yaml` (Kilted happened to flush on teardown). The
+  writer is now closed explicitly on shutdown. Both nodes handle the
+  `ExternalShutdownException` that `ros2 launch` / Ctrl-C raise and end with
+  `rclpy.try_shutdown()` instead of a second `rclpy.shutdown()` traceback.
+- **Verification.** `scripts/smoke_test_node_macos.sh [jazzy|kilted]` now runs
+  the whole chain in the official `ros:<distro>-ros-base` images: rosdep →
+  colcon (all four packages) → node + bagger started from the *installed*
+  packages → 80 real RB_02 frames → both score channels published and an MCAP
+  bag with messages. Green on Jazzy and Kilted (aarch64). The same workspace
+  built with `pixi-build-ros` for linux-64 (`pixi install`, node run from the
+  Pixi environment, `pixi publish --target-channel ./output` producing the four
+  conda packages). `.github/workflows/ros2-build.yml` repeats the colcon build
+  on both distros and the Pixi build on every push.
+
+---
+
 ## 2026-09-24 — Faces pixelated in the published demo videos
 
 The demo videos attached to release v1.0.0 are re-published with faces
@@ -36,7 +111,7 @@ as "kinematic scalar"). The b1_* diagnostics remain in `comparison.md` and
 
 ---
 
-## 2026-09-02 — Awareness measurability gate (`riskam/ml/facegate.py`)
+## 2026-09-02 — Awareness measurability gate (`riskam/riskam/ml/facegate.py`)
 
 Motivated by a cross-dataset finding: on privacy-defaced data (crowdbot_v2),
 YOLO11-Pose draws a canonical **frontal-face template inside the blur
@@ -55,7 +130,7 @@ calibrated so ~90% of the unblurred cs_robocup_2023 reference passes while
 SSM margins alike) and the gaze sub-score status degrades ACTIVE → FALLBACK
 with a "k/n faces unmeasurable" reason, per the input-availability contract.
 
-- **`riskam/ml/facegate.py`** — the measurement (`measure_face_texture`,
+- **`riskam/riskam/ml/facegate.py`** — the measurement (`measure_face_texture`,
   parameter-independent, cached) and the decision (`gaze_measurable`, two
   documented constants in the spirit of `d_safe`/near-clip, sweepable via
   `gate_min_inter_eye_px` / `gate_min_face_texture`).
@@ -91,7 +166,7 @@ with a "k/n faces unmeasurable" reason, per the input-availability contract.
 
 ## 2026-09-09 — Kinematic formulation wired into the live node
 
-The awareness-modulated kinematic formulation (`riskam/kinematics.py`) now
+The awareness-modulated kinematic formulation (`riskam/riskam/kinematics.py`) now
 runs in `riskam_node` alongside the weighted score, on the same per-frame
 primitives — completing the software deliverable: both scoring formulations
 are runnable on the robot. The weighted scoring path is byte-identical
@@ -167,12 +242,12 @@ the first on a RealSense platform. See
 (crowdbot_v2)".
 
 **Dataset (7 runs, 8,915 RGB frames, ~4 GB):**
-- `riskam/data/extract_crowdbot.py` — ROS 1 bags read with the pure-Python
+- `riskam/riskam/data/extract_crowdbot.py` — ROS 1 bags read with the pure-Python
   `rosbags` library (new dependency); no ROS install or Docker wrapper.
   Forward RealSense `/camera_left`: RGB ~13 Hz, `aligned_depth_to_color`
   16-bit PNG mm ~6.5 Hz (depth-index hit rate ~100%), twists from
   odom→`tf_qolo` /tf transforms at ~200 Hz (shared finite-difference
-  helpers factored into `riskam/data/tf_odometry.py`, also used by the
+  helpers factored into `riskam/riskam/data/tf_odometry.py`, also used by the
   ROS 2 extractor). Defacing quirk handled: color bytes are RGB despite
   the declared `bgr8`. Disk-aware orchestrator
   `scripts/prepare_crowdbot_v2.sh` (stage → extract → delete, resumable).
@@ -207,26 +282,26 @@ datasets. See [`evaluation-framework.md`](evaluation-framework.md)
 §"Dataset preparation (cs_robocup_2024)" and §"Layer 2".
 
 **Dataset (10 runs, 96,033 frames, 46 GB):**
-- `riskam/data/extract_cs_robocup.py` generalized to a per-dataset spec:
+- `riskam/riskam/data/extract_cs_robocup.py` generalized to a per-dataset spec:
   2024 topics (`/head_front_camera/*`), depth normalized to uint16 mm and
   stored as 16-bit PNG (~3× smaller), odometry derived from `/tf`
   odom→base transforms (the 2024 bags carry no odom topic; verified 50 Hz,
-  plausible TIAGo speeds). `riskam/data/cs_robocup_indices.py` — shared
+  plausible TIAGo speeds). `riskam/riskam/data/cs_robocup_indices.py` — shared
   year-agnostic depth/odom indices. Disk-aware run-at-a-time orchestrator
   `scripts/prepare_cs_robocup_2024.sh`. Every run's frame counts match the
   bag message counts exactly; depth-index hit rate 100 %.
 - No annotations, by design — 2024 is evaluated via Layer 2.
 
 **Layer 2 (hindsight oracle + early-warning metrics):**
-- New `riskam/hindsight.py` (non-causal oracle; scene-level future-min
+- New `riskam/riskam/hindsight.py` (non-causal oracle; scene-level future-min
   distance, per-track savgol via the `mocap_gt` helpers, import firewall
-  against the causal stack), `riskam/ssm.py` (ISO/TS 15066-style margin
-  channels, worst-case + awareness-modulated), `riskam/event_table.py`
+  against the causal stack), `riskam/riskam/ssm.py` (ISO/TS 15066-style margin
+  channels, worst-case + awareness-modulated), `riskam/riskam/event_table.py`
   (per-frame backbone: causal channels + oracle outcomes; sibling of the
-  frozen `scene_table.py`), `riskam/early_warning.py` (ROC/PR AUC per
+  frozen `scene_table.py`), `riskam/riskam/early_warning.py` (ROC/PR AUC per
   (r, T) cell, sustained-alarm episodes, lead time, FA/min,
   matched-recall headline), driver `scripts/layer2.py`,
-  `riskam/data/run_datasets.py` (torch-free dataset wiring registry).
+  `riskam/riskam/data/run_datasets.py` (torch-free dataset wiring registry).
 - 40 new tests (315 total green).
 
 **First results** (`exp_results/<dataset>/layer2/report.md`):
@@ -257,7 +332,7 @@ First dataset work under the committed eval revamp (`private/paper-plan.md`
 §6): mocap-derived ground-truth kinematics for measurement validity. See
 [`evaluation-framework.md`](evaluation-framework.md) §THÖR-MAGNI.
 
-- **`riskam/data/thor_magni.py`** — parser for the Zenodo mocap CSVs
+- **`riskam/riskam/data/thor_magni.py`** — parser for the Zenodo mocap CSVs
   (metadata header, 100 Hz centroid + body→world rotation tracks per rigid
   body, roles). 52 runs across 5 scenarios.
 - **`scripts/calibrate_thor_magni_frames.py`** — empirical frame-convention
@@ -265,16 +340,16 @@ First dataset work under the committed eval revamp (`private/paper-plan.md`
   differential-drive SC3A runs — also confirms body→world); helmet facing =
   body ±X with per-helmet mounting sign (Helmet_6 mirrored); footprint scale
   from marker planar spread (0.35–0.57 m).
-- **`riskam/mocap_gt.py`** — GT tables per (frame, participant): robot-frame
+- **`riskam/riskam/mocap_gt.py`** — GT tables per (frame, participant): robot-frame
   planar position, relative velocity (differentiated *after* the robot-frame
   transform so the camera's ω×p transport term is included), closing/
   tangential speed, `t_cpa`, `d_min`, trajectory hazard via vectorized twins
-  of the `riskam/kinematics.py` formulas (equality pinned by tests), and a
+  of the `riskam/riskam/kinematics.py` formulas (equality pinned by tests), and a
   head-facing awareness reference with self-calibrated facing sign. NaN-aware
   Savitzky–Golay smoothing per tracked segment; occlusion gaps ≤ 0.3 s
   bridged, never extrapolated. Fixed en route: `np.unwrap` over NaN-holed
   yaw poisoned everything after the first robot-track dropout.
-- **`riskam/platforms.py`** — `AZURE_KINECT` sensor + `DARKO_KINECT`
+- **`riskam/riskam/platforms.py`** — `AZURE_KINECT` sensor + `DARKO_KINECT`
   platform presets.
 - Sanity aggregates match the scenario design (robot static in SC1/SC2,
   0.31–0.45 m/s in SC3–5; closest approaches in the HRI scenarios).
@@ -286,7 +361,7 @@ Offline implementation of both paper-plan directions as a research track that
 leaves the deployed pipeline untouched. See
 [`experimental-metrics.md`](experimental-metrics.md) for the full reference.
 
-- **`riskam/kinematics.py`** — Direction A: bearing from bbox centre-x +
+- **`riskam/riskam/kinematics.py`** — Direction A: bearing from bbox centre-x +
   camera intrinsics, planar per-track relative-velocity fits (explicit frame
   timestamps, unlike the wall-clock `humandet` history), CPA extrapolation
   (`t_cpa`, `d_min`), trajectory hazard (max of `closeness(t)·exp(−t/τ)`
@@ -304,11 +379,11 @@ leaves the deployed pipeline untouched. See
   frame-to-frame flicker than the deployed metric on every run, and the
   unfitted physics metric's Spearman ρ edged past the hand-tuned
   baseline (+0.758 vs +0.750 on test).
-- **`riskam/ordinal.py` + `riskam/proba_metrics.py`** — Direction B1:
+- **`riskam/riskam/ordinal.py` + `riskam/riskam/proba_metrics.py`** — Direction B1:
   proportional-odds logit (statsmodels, `experiments` dep group) persisted as
   numpy-only JSON fits, LR ablation tests; Brier/log-loss/RPS/cumulative-AUC/
   reliability+ECE/Spearman.
-- **`riskam/scene_table.py` + `scripts/metric_lab.py`** — cache → per-frame
+- **`riskam/riskam/scene_table.py` + `scripts/metric_lab.py`** — cache → per-frame
   scene feature table; models m0/m0c/a_raw/a_cal/b1_sub/b1_kin fit on val,
   frozen report on test; artifacts under
   `exp_results/cs_robocup_2023/metric_lab/`. Absorbs and replaces the
@@ -320,7 +395,7 @@ leaves the deployed pipeline untouched. See
   empty in RB_01/06/07) and `camera_info.json` (fx = 530.2 @ 640 px);
   `CSRobocup2023OdomIndex` + `load_camera_model` degrade gracefully when the
   files are absent. Unblocks the data half of T3.3.3.
-- **`riskam/platforms.py`** — additive referent constants:
+- **`riskam/riskam/platforms.py`** — additive referent constants:
   `DepthSensor.rgb_hfov_deg` (Xtion 58°, D435 69°),
   `RobotPlatform.footprint_radius_m` (TIAGo 0.27 m, Ridgeback 0.48 m),
   `TAU_REACTION_S_DEFAULT` (2.0 s), `BETA_UNAWARE_DEFAULT` (1.0).
@@ -328,7 +403,7 @@ leaves the deployed pipeline untouched. See
 ## 2026-05-06 — Sensor compatibility (T2.7) and visualisation
 
 - **T2.7 — RealSense + Xtion support.** Added the near-clip dead-zone fallback in
-  `riskam/ml/depth.py`: `depth_near_clip_m` (default `0.0` keeps RealSense
+  `riskam/riskam/ml/depth.py`: `depth_near_clip_m` (default `0.0` keeps RealSense
   behaviour bit-identical) and `near_clip_bbox_min_frac`. When both fire,
   `extract_bbox_depths` returns `0 m` (max proximity) for a person in the dead
   zone instead of `d_safe`. `depth_to_visualization` upper bound expanded to
@@ -337,7 +412,7 @@ leaves the deployed pipeline untouched. See
 - **T2.7 robustness.** Generalised the close-fallback condition from "exactly
   zero valid pixels" to "valid fraction ≤ `near_clip_valid_frac_max`" (default
   `0.0`) to absorb background bleed-through on structured-light sensors.
-- **T2.7 platform abstraction.** Introduced `riskam/platforms.py`
+- **T2.7 platform abstraction.** Introduced `riskam/riskam/platforms.py`
   (`DepthSensor` → `RobotPlatform`) with presets `RIDGEBACK_D435` (SamXL) and
   `TIAGO_XTION` (cs_robocup_2023, `d_safe` 1.5 → 2.5 m). The live ROS path still
   reads scalars from `riskam_config.yml`.
@@ -357,7 +432,7 @@ standard and rewrote the README. By item:
   declared as a ROS param, validated in the weight sum, and added as a sweep axis.
   ByteTrack enabled offline + `reset_velocity_history()` per run.
 - **T3.3.3 (refactor half)** — Sub-score input-availability contract
-  (`riskam/ml/subscores.py`): `FrameInputs`, `RobotVelocity`, `SubScoreStatus`,
+  (`riskam/riskam/ml/subscores.py`): `FrameInputs`, `RobotVelocity`, `SubScoreStatus`,
   `SubScoreResult`, `FrameExtraction`, `compute_*`. Live + offline unified on
   `featextr.extract(FrameInputs(...))`. Diagnostics escalate to WARN on any
   non-ACTIVE sub-score. Fixed a latent unit bug (velocity tracker was fed

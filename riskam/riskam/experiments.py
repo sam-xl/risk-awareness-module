@@ -12,6 +12,7 @@ import cv2
 from tqdm import tqdm
 
 from riskam.data.ml_datasets import DATASETS
+from riskam.data.paths import ROOT_DIR
 from riskam.data.run_datasets import RUN_BASED_DEPTH_INDEXES
 from riskam.data.splits import (
     CS_ROBOCUP_2023_SPLIT_PATH,
@@ -31,8 +32,8 @@ from riskam.score import RiskScorer
 
 
 # Dir and file names/paths
-EXP_ROOT_DIR = Path(__file__).parent.parent / "exp_results"
-FEATURE_CACHE_ROOT = Path(__file__).parent.parent / "feature_cache"
+EXP_ROOT_DIR = ROOT_DIR / "exp_results"
+FEATURE_CACHE_ROOT = ROOT_DIR / "feature_cache"
 RISK_IMAGES_DIRNAME = "risk_images"
 RAW_VIDEO_FNAME = "raw_video.avi"
 RISK_VIDEO_FNAME = "risk_video.avi"

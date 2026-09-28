@@ -1,12 +1,37 @@
 <?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>riskam</name>
-  <version>0.0.1</version>
-  <description>Risk Analysis Module for Ros2 Integration of RiskAM</description>
-  <maintainer email="R.Adam-1@tudelft.nl">Richard Adam</maintainer>
+  <version>1.0.0</version>
+  <description>RiskAM core library: perception, sub-scores, scoring, kinematics and visualisation (ROS-independent Python)</description>
+  <maintainer email="jan.zahalka@cvut.cz">Jan Zahálka</maintainer>
+  <author email="R.Adam-1@tudelft.nl">Richard Adam</author>
   <license>MIT</license>
+  <url type="repository">https://github.com/CoreSenseEU/risk-awareness-module</url>
 
-  <build_type>ament_python</build_type>
-  <!-- Dependencies -->
-  <exec_depend>python3</exec_depend>
+  <!-- Runtime closure of the library (the node imports riskam.visualization,
+       which pulls in the offline-evaluation modules as well). rosdep keys:
+       apt/pip on Ubuntu, RoboStack/conda-forge names under Pixi (see
+       pixi.toml for the keys the backend mapping does not know). -->
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-pil</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+  <exec_depend>python3-seaborn</exec_depend>
+  <exec_depend>python3-sklearn</exec_depend>
+  <exec_depend>python3-tqdm</exec_depend>
+  <!-- ML runtime. Ubuntu 24.04 packages neither torch nor torchvision, so
+       these are pip keys: `rosdep install` pip-installs them (needs pip and,
+       on 24.04, PIP_BREAK_SYSTEM_PACKAGES=1), or skip the keys and pip-install
+       by hand. ultralytics pulls in torch on pip; torchvision is listed because
+       conda-forge's ultralytics does not depend on it. torch itself and lap
+       (ByteTrack's solver) have no rosdep key, so pixi.toml declares them for
+       the conda build. -->
+  <exec_depend>python3-torchvision-pip</exec_depend>
+  <exec_depend>python3-ultralytics-pip</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
 </package>

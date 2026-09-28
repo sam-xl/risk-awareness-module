@@ -13,36 +13,85 @@ platform presets.
 
 ## Stack
 
-Conservative stance: RiskAM must work with the rest of the CoreSense stack. No
-ROS version changes are proposed.
+Conservative stance: RiskAM must work with the rest of the CoreSense stack, so
+it targets the CoreSense ROS 2 distributions and ships in the CoreSense Pixi
+channel.
 
-- **MiDaS removed** — `timm` / `torch.hub` MiDaS gone; one fewer inference model.
-- **`numpy<2.0.0` pin lifted** — was imposed only by MiDaS.
-- **MediaPipe removed** — old face-mesh gaze module deleted.
+- **ROS 2 Jazzy or Kilted** (Ubuntu 24.04). Both are verified end-to-end by
+  `scripts/smoke_test_node_macos.sh [jazzy|kilted]` (rosdep → colcon → node +
+  bagger on real frames, from the *installed* packages) and by the CI workflow
+  `.github/workflows/ros2-build.yml`, which also builds the conda packages with
+  `pixi-build-ros`. Jazzy is the CoreSense LTS target and the default in
+  `pixi.toml`.
+- **Four packages** — `riskam` (ament_python; the library, in the canonical
+  `riskam/riskam/` layout), `riskam_msgs`
+  (`FloatStamped`), `riskam_ros` (node + bagger executables), `riskam_bringup`
+  (launch + config). Every runtime dependency is declared in the `package.xml`
+  files with rosdep keys, so `rosdep install` (apt/pip) and the RoboStack
+  mapping (conda) resolve the same closure. The camera driver
+  (`realsense2_camera` or any other) is launched separately and is deliberately
+  not a dependency: RiskAM only consumes its topics.
 - **Ultralytics YOLO11n-Pose + ByteTrack** — single inference model for the full
-  pipeline (`ml_models/yolo11n-pose.pt`); ByteTrack bundled, no extra dependency.
-- **ROS 2 Rolling** — rolling-tested; distro-agnostic in principle.
+  pipeline (`ml_models/yolo11n-pose.pt`); ByteTrack bundled. `lap` (ByteTrack's
+  assignment solver) must be present at runtime; ultralytics would otherwise try
+  to pip-install it on first use.
+- **MiDaS and MediaPipe removed** — one inference model; the `numpy<2.0.0` pin
+  went with MiDaS.
 - **Depth sensors** — RealSense D4xx default-calibrated; structured-light
   sensors supported via the near-clip fallback.
-- **Known dead dep** — `nav_msgs` is declared in `riskam_ros/package.xml` but the
-  path-aware `x_offset` actually uses `geometry_msgs/Twist` from `/cmd_vel`; drop
-  `nav_msgs` when convenient.
 
 ---
 
 ## Build
 
-Clone into the `src/` of your colcon workspace and build:
+### colcon (Ubuntu 24.04 + ROS 2 Jazzy/Kilted)
+
+Clone into the `src/` of your colcon workspace, resolve the declared
+dependencies, and build:
 
 ```bash
 cd src
 git clone git@github.com:CoreSenseEU/risk-awareness-module.git
 cd ..
+rosdep install --from-paths src --ignore-src -y
 colcon build --packages-select riskam riskam_ros riskam_msgs riskam_bringup
 ```
 
+`rosdep` installs the ROS packages and the apt-packaged Python libraries
+(numpy, OpenCV, matplotlib, ...). Ubuntu 24.04 packages neither torch nor
+torchvision, so the ML runtime is declared as pip keys
+(`python3-torchvision-pip`, `python3-ultralytics-pip`; ultralytics pulls in
+torch): with `python3-pip` installed, `PIP_BREAK_SYSTEM_PACKAGES=1 rosdep
+install ...` lets rosdep pip-install them on Ubuntu 24.04, or skip them
+(`--skip-keys "python3-torchvision-pip python3-ultralytics-pip"`) and
+`pip install ultralytics lap` yourself. `--symlink-install` works too.
+
 The ROS build path uses `riskam/setup.py` via colcon and is independent of the
 `uv`/`pyproject.toml` Python-only path used by the offline tooling.
+
+### Pixi (CoreSense channel)
+
+The repository carries the manifests of the [CoreSense Pixi release
+workflow](https://coresenseeu.github.io/tutorials/docs/pixi_release.html):
+a workspace `pixi.toml` at the root and a package `pixi.toml` next to each
+`package.xml`. `pixi-build-ros` reads name, version and dependencies from the
+`package.xml` files and maps the rosdep keys to RoboStack/conda-forge names
+(the keys its built-in mapping does not know — torchvision, ultralytics,
+tqdm, seaborn — are mapped in `riskam/pixi.toml`, which also adds `pytorch`
+and `lap`, the two runtime dependencies without a rosdep key). No system ROS
+installation is needed:
+
+```bash
+pixi install                              # solves + builds the four packages into .pixi/
+pixi run start                            # ros2 launch riskam_bringup riskam.launch.py
+pixi publish --target-channel ./output    # conda packages into ./output
+```
+
+Publishing to `https://prefix.dev/coresense-jazzy` is the WP5 coordinator's
+step (`pixi publish --target-channel <channel>` with a prefix.dev token). The
+channel skips versions it already has, so bump the `package.xml` versions for
+every release. The manifests target Jazzy; for Kilted replace `jazzy` with
+`kilted` in the root `pixi.toml`.
 
 ---
 
@@ -57,12 +106,18 @@ ros2 run riskam_ros riskam_node.py --ros-args -p camera_topic:=/your/color/topic
 Node + bagger via launch:
 
 ```bash
-ros2 launch riskam_bringup riskam.launch.py run_logger:=true
+ros2 launch riskam_bringup riskam.launch.py run_bagger:=true
 ```
 
 Parameters live in `riskam_bringup/config/riskam_config.yml`; override at launch
 with `--ros-args -p name:=value`. The values below are the source-of-truth
 defaults from that file.
+
+**Model weights.** `riskam` looks for `yolo11n-pose.pt` in `ml_models/` of a
+source checkout. An installed copy of the packages (colcon install prefix, Pixi
+environment) has no such directory, so set `RISKAM_ML_MODELS_DIR` to a
+directory holding the file; if it is missing, ultralytics downloads it there on
+first use.
 
 ---
 

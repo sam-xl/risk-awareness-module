@@ -12,6 +12,7 @@ import datetime
 
 import rclpy
 import rosbag2_py
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.serialization import serialize_message
 from sensor_msgs.msg import Image
@@ -122,12 +123,30 @@ class RiskBagger(Node):
     def _write(self, topic: str, msg) -> None:
         self.writer.write(topic, serialize_message(msg), self.get_clock().now().nanoseconds)
 
+    def close(self) -> None:
+        """Flush the bag and write its metadata.
+
+        rosbag2 buffers messages in chunks and only writes ``metadata.yaml``
+        when the writer is closed. Relying on interpreter teardown for that is
+        not enough: on Jazzy a bagger stopped with Ctrl-C / SIGINT leaves an
+        empty ``.mcap`` behind, so the writer is closed explicitly.
+        """
+        if self.writer is not None:
+            self.writer.close()
+            self.writer = None
+
 
 def main(args=None):
     rclpy.init(args=args)
     bagger = RiskBagger()
-    rclpy.spin(bagger)
-    rclpy.shutdown()
+    try:
+        rclpy.spin(bagger)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    finally:
+        bagger.close()
+        bagger.destroy_node()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

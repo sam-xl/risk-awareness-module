@@ -10,7 +10,7 @@ in-depth, categorised reference.
 |-----|--------|
 | [architecture.md](architecture.md) | Frame-to-score pipeline, `featextr` split, and the sub-score input-availability contract |
 | [scoring.md](scoring.md) | The four sub-scores (proximity, gaze, x_offset, approach) and scene aggregation — the algorithmic core |
-| [sensors-and-platforms.md](sensors-and-platforms.md) | Absolute-depth handling, the near-clip dead-zone fallback, and `riskam/platforms.py` presets |
+| [sensors-and-platforms.md](sensors-and-platforms.md) | Absolute-depth handling, the near-clip dead-zone fallback, and `riskam/riskam/platforms.py` presets |
 | [ros-deployment.md](ros-deployment.md) | Building/running the node; exhaustive parameter, topic, and bagger reference; deployment checklist |
 | [evaluation-framework.md](evaluation-framework.md) | Offline benchmarking toolchain (sweep, metrics, summary, reeval, cache, splits, provenance) |
 | [experimental-metrics.md](experimental-metrics.md) | Kinematic hazard × awareness (Direction A) and ordinal calibration (B1) — the `metric_lab` research track |

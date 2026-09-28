@@ -23,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "riskam"))
 
 # pylint: disable=wrong-import-position
 from riskam.early_warning import (

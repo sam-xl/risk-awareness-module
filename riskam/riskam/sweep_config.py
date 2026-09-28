@@ -28,10 +28,11 @@ from typing import Iterator
 import yaml
 
 from riskam.ml.humandet import GAZE_ALGORITHMS, GAZE_ALGORITHM_DEFAULT
+from riskam.data.paths import ROOT_DIR
 
 
 DEFAULT_SWEEP_CONFIG_PATH = (
-    Path(__file__).resolve().parent.parent / "configs" / "sweeps" / "default.yaml"
+    ROOT_DIR / "configs" / "sweeps" / "default.yaml"
 )
 
 WEIGHT_KEYS: tuple[str, ...] = ("w_proximity", "w_gaze", "w_position", "w_approach")

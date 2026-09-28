@@ -3,16 +3,21 @@
 <package format="3">
   <name>riskam_bringup</name>
   <version>1.0.0</version>
-  <description>Contains Launch and Config Files for RiskAM Ros2 Integration</description>
-  <maintainer email="r.adam-1@tudelft.nl">ros</maintainer>
+  <description>Launch and configuration files for the RiskAM ROS 2 node and logger</description>
+  <maintainer email="jan.zahalka@cvut.cz">Jan Zahálka</maintainer>
+  <author email="r.adam-1@tudelft.nl">Richard Adam</author>
   <license>Apache-2.0</license>
+  <url type="repository">https://github.com/CoreSenseEU/risk-awareness-module</url>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  
-  <depend>riskam_ros</depend>
-  <depend>realsense2_camera</depend>
 
+  <!-- The camera driver (e.g. realsense2_camera) is launched separately and
+       is deliberately not a dependency: RiskAM only needs its topics. -->
+  <exec_depend>riskam_ros</exec_depend>
   <exec_depend>ros2launch</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -25,7 +25,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "riskam"))
 
 from riskam.data.paths import ROOT_DIR  # noqa: E402
 from riskam.data.run_datasets import RUN_DATASETS  # noqa: E402

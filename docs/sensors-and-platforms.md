@@ -40,7 +40,7 @@ fix makes the interpretation a configurable, physical property of the sensor.
 
 ## The three depth knobs
 
-`riskam/ml/depth.py` (`extract_bbox_depths` / `extract_bbox_proximities`):
+`riskam/riskam/ml/depth.py` (`extract_bbox_depths` / `extract_bbox_proximities`):
 
 | Parameter | Default | Meaning |
 |-----------|---------|---------|
@@ -79,7 +79,7 @@ bound stays at `d_safe` and the viz is bit-identical to pre-T2.7.
 
 ---
 
-## Platform presets — `riskam/platforms.py`
+## Platform presets — `riskam/riskam/platforms.py`
 
 A two-level dataclass split reflects the physics: a near-clip dead zone is a
 *sensor* property; `d_safe` is a *robot* property (speed + stopping distance).
@@ -121,5 +121,5 @@ deployment can override any field without inventing a new platform name.
   bleed-through. If unsure leave at `0` and bump only if you see "person clearly
   close, but proximity stays zero" on `/riskam/diagnostics`.
 
-Contributions of new presets to `riskam/platforms.py` are welcome — keep the
+Contributions of new presets to `riskam/riskam/platforms.py` are welcome — keep the
 dataclass, document the values, add a sanity test in `tests/test_platforms.py`.

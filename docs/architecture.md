@@ -27,7 +27,7 @@ bag-backed velocity replay lands (see the improvement plan, T3.3.3).
 
 ### `featextr` two-way split
 
-`riskam/ml/featextr.py` separates parameter-independent inference from
+`riskam/riskam/ml/featextr.py` separates parameter-independent inference from
 parameter-dependent scoring so the expensive half can be cached:
 
 | Function | Cost | Depends on sweep params? | Cacheable |
@@ -47,7 +47,7 @@ ByteTrack's temporal coupling.
 
 ## Sub-score input-availability contract
 
-Implemented in `riskam/ml/subscores.py`. The contract formalises which inputs
+Implemented in `riskam/riskam/ml/subscores.py`. The contract formalises which inputs
 each sub-score needs and what happens when an *optional* input is missing,
 rather than handling that ad hoc at every call site.
 
@@ -101,7 +101,7 @@ experiments, tests, and notebooks.
 
 ## Data types
 
-Defined in `riskam/ml/subscores.py`:
+Defined in `riskam/riskam/ml/subscores.py`:
 
 - **`FrameInputs`** — `rgb` (BGR `(H,W,3)` uint8), `depth_m` (`(H,W)` float32
   metres), optional `cmd_vel`. `validate()` is the required-input gate.
@@ -115,7 +115,7 @@ Defined in `riskam/ml/subscores.py`:
 
 ## Statefulness and threading
 
-- **`RiskScorer` (`riskam/score.py`)** is a stateful class holding per-track
+- **`RiskScorer` (`riskam/riskam/score.py`)** is a stateful class holding per-track
   risk history (keyed by ByteTrack ID, with a `None` bucket for untracked
   detections). It replaced the prototype's module-level `prev_risks` global,
   making the scorer thread-safe to instantiate, testable, and safe in

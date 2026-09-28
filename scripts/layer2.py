@@ -37,7 +37,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "riskam"))
 
 # pylint: disable=wrong-import-position
 import numpy as np

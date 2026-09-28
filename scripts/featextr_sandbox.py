@@ -18,7 +18,7 @@ from pathlib import Path
 
 import cv2
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "riskam"))
 
 # pylint: disable=wrong-import-position
 from riskam.data.cs_robocup_2023 import CSRobocup2023DepthIndex

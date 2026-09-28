@@ -7,7 +7,7 @@ Constructs the CS RoboCup dataset from the raw images extracted from the ROS2 ba
 from pathlib import Path
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "riskam"))
 
 # pylint: disable=wrong-import-position
 from riskam.data import cs_robocup

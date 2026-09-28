@@ -19,7 +19,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "riskam"))
 
 # pylint: disable=wrong-import-position
 from riskam.data.paths import THOR_MAGNI_GT_DIR

@@ -40,6 +40,7 @@ from time import monotonic
 import numpy as np
 import rclpy
 from cv_bridge import CvBridge
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
 
@@ -486,9 +487,13 @@ def main(args=None):
     node = RiskAM()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        # Ctrl-C / SIGTERM from `ros2 launch`: rclpy has already shut the
+        # context down, so only the node is left to clean up.
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":

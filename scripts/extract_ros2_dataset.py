@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "riskam"))
 
 # pylint: disable=wrong-import-position
 # Note: we deliberately do NOT import riskam.data.ml_datasets here, since it

@@ -3,19 +3,26 @@
 <package format="3">
   <name>riskam_ros</name>
   <version>1.0.0</version>
-  <description>Contains Node Source Code for RiskAM Ros2 Integration</description>
-  <maintainer email="r.adam-1@tudelft.nl">ros</maintainer>
+  <description>RiskAM ROS 2 node (riskam_node) and rosbag2 logger (riskam_bagger)</description>
+  <maintainer email="jan.zahalka@cvut.cz">Jan Zahálka</maintainer>
+  <author email="r.adam-1@tudelft.nl">Richard Adam</author>
   <license>Apache-2.0</license>
+  <url type="repository">https://github.com/CoreSenseEU/risk-awareness-module</url>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>rclpy</depend>
-  <depend>cv_bridge</depend>
-  <depend>riskam_msgs</depend>
-  <depend>message_filters</depend>
-  <depend>geometry_msgs</depend>
-  <depend>nav_msgs</depend>
-  <depend>diagnostic_msgs</depend>
+  <!-- Pure-Python executables: everything below is needed at run time only. -->
+  <exec_depend>riskam</exec_depend>
+  <exec_depend>riskam_msgs</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>message_filters</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>rosbag2_py</exec_depend>
+  <exec_depend>rosbag2_storage_mcap</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

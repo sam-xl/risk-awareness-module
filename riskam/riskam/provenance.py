@@ -18,8 +18,10 @@ import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from riskam.data.paths import ROOT_DIR
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+_REPO_ROOT = ROOT_DIR
 
 
 # Packages whose versions affect numerical reproducibility.

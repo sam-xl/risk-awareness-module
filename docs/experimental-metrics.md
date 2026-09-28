@@ -2,11 +2,11 @@
 
 Implementation of the two metric-redesign directions explored in
 [`private/paper-plan.md`](private/paper-plan.md). Everything here is
-**offline research tooling**: the deployed pipeline (`riskam/score.py`,
+**offline research tooling**: the deployed pipeline (`riskam/riskam/score.py`,
 the ROS node, the sweep harness) is untouched, and nothing below runs on
 the robot. The entry point is `scripts/metric_lab.py`.
 
-## Direction A — kinematic hazard × awareness (`riskam/kinematics.py`)
+## Direction A — kinematic hazard × awareness (`riskam/riskam/kinematics.py`)
 
 The deployed score adds incommensurable [0, 1] sub-scores; the kinematic
 metric instead derives one physical hazard and lets awareness *scale* it:
@@ -76,13 +76,13 @@ The far-fallback sentinel (depth exactly `d_safe`) is likewise censored
 from velocity fits. Track gaps > 1 s reset that track's history.
 Timestamps are explicit (frame stems offline) — never wall-clock.
 
-Every knob has a physical referent (`riskam/platforms.py`): `d_safe` =
+Every knob has a physical referent (`riskam/riskam/platforms.py`): `d_safe` =
 stopping distance, `τ` = reaction window (`TAU_REACTION_S_DEFAULT` 2.0 s),
 `β` = oblivious-human penalty (`BETA_UNAWARE_DEFAULT` 1.0 ≈ the ISO/TS
 15066 SSM worst-case posture, applied only when awareness is absent),
 `footprint_radius_m`, `rgb_hfov_deg`.
 
-## Direction B1 — ordinal calibration (`riskam/ordinal.py`)
+## Direction B1 — ordinal calibration (`riskam/riskam/ordinal.py`)
 
 A proportional-odds logit, `logit P(class ≥ k) = x·β − α_k`, fit by MLE on
 the **val** bucket of the canonical split (the split module's stated
@@ -96,12 +96,12 @@ time — reweighting would miscalibrate the probabilities, and calibration
 is the point. Imbalance is handled on the reporting side (macro-F1,
 per-class recall, proper scoring rules).
 
-## Evaluation upgrade (`riskam/proba_metrics.py`)
+## Evaluation upgrade (`riskam/riskam/proba_metrics.py`)
 
 Probabilistic outputs unlock proper scoring rules: Brier, log-loss,
 ranked probability score (the ordinal-proper rule), cumulative AUC
 (P(y ≥ k) per threshold), reliability tables + ECE, Spearman ρ.
-`riskam/eval_metrics.py` (the deployed `results.json` schema) is untouched.
+`riskam/riskam/eval_metrics.py` (the deployed `results.json` schema) is untouched.
 
 ## The lab (`scripts/metric_lab.py`)
 

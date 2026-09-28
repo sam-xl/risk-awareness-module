@@ -31,7 +31,7 @@ hit/miss stats alongside the classification report.
 
 ## Components
 
-### Offline depth — `riskam/data/cs_robocup_2023.py`
+### Offline depth — `riskam/riskam/data/cs_robocup_2023.py`
 
 Per-frame absolute-depth `.npy` files (raw uint16 mm) are saved by
 `extract_cs_robocup.py`. `CSRobocup2023DepthIndex` does nearest-neighbour
@@ -40,7 +40,7 @@ passes `depth_image_m` into `featextr`. This re-enabled the proximity sub-score
 offline — previously the sweep ran with `depth_image_m=None`, silently zeroing
 the single most important sub-score.
 
-### Config-driven sweep — `riskam/sweep_config.py`, `configs/sweeps/`
+### Config-driven sweep — `riskam/riskam/sweep_config.py`, `configs/sweeps/`
 
 `SweepConfig.iter_experiments()` yields the Cartesian product of:
 
@@ -55,14 +55,14 @@ missing keys, unknown keys, empty lists, or non-normalised weight tuples.
 Extension axes (`d_safe`, `crowd_alpha`) are a trivial YAML addition once
 ablation design dictates them.
 
-### Metrics — `riskam/eval_metrics.py`
+### Metrics — `riskam/riskam/eval_metrics.py`
 
 `classification_report(y_true, y_pred_continuous)` produces per-class
 precision/recall/F1/support, a 4×4 confusion matrix, macro/micro averages (micro
 ≡ accuracy), and MAE/RMSE against class-centre targets. Merged into each
 `results.json` under `classification`.
 
-### Cross-run aggregation — `riskam/eval_summary.py`
+### Cross-run aggregation — `riskam/riskam/eval_summary.py`
 
 Walks the per-experiment `results.json` files and pools metrics across runs per
 config: confusion matrices summed cell-wise (per-class/macro/micro recomputed
@@ -70,14 +70,14 @@ from the pooled CM — statistically correct), MAE/RMSE sample-weighted. Emits
 `summary.json` + a ranked top-K `summary.md` with a per-run breakdown of the best
 config. Plots are deferred (not a blocker for the paper numbers).
 
-### Eval-only mode — `riskam/reeval.py`
+### Eval-only mode — `riskam/riskam/reeval.py`
 
 Given a cached `raw_predictions.json`, recomputes all metrics without re-running
 YOLO/featextr. Stamps a fresh provenance block with `reeval_of` pointing at the
 original inference-run git SHA so the audit chain is preserved. `--output-suffix`
 writes alongside the original instead of overwriting.
 
-### Feature cache — `riskam/feature_cache.py`
+### Feature cache — `riskam/riskam/feature_cache.py`
 
 Caches `CachedFrameFeatures` (bboxes, keypoints, track_ids, per-bbox depths,
 depth_viz) under `feature_cache/<dataset>/<run>/<model_sha>/<frame_stem>.npz`.
@@ -88,14 +88,14 @@ inference-bound sweep from O(hours) to O(minutes).
 > *after* a full uncached pass populates it — mixed hit/miss within a single run
 > can desynchronise track IDs. Populate, then sweep.
 
-### Provenance — `riskam/provenance.py`
+### Provenance — `riskam/riskam/provenance.py`
 
 `reproducibility_metadata()` stamps git SHA + dirty flag, hostname, ISO-8601 UTC
 timestamp, Python version, and tracked package versions (torch, ultralytics,
 numpy, opencv-python). Merged into `results.json` under `provenance`; params are
 mirrored under `params` so each result is self-describing.
 
-### Val/test split — `riskam/data/splits.py`
+### Val/test split — `riskam/riskam/data/splits.py`
 
 **Note: there is no train split.** RiskAM has no trainable parameters, so the
 sweep does *hyperparameter selection* on val and the final report comes from a
@@ -125,13 +125,13 @@ The measurement-validity layer of the paper eval (`paper-plan.md` §6): the
 [THÖR-MAGNI](https://zenodo.org/records/10554472) dataset provides Qualisys
 mocap (100 Hz) for every participant helmet **and** the DARKO robot, giving
 externally measured ground truth for exactly the quantities
-`riskam/kinematics.py` estimates from vision.
+`riskam/riskam/kinematics.py` estimates from vision.
 
 | Tool | Purpose |
 |------|---------|
-| `riskam/data/thor_magni.py` | Parse the per-run mocap CSVs (centroids, body→world rotations, roles) |
+| `riskam/riskam/data/thor_magni.py` | Parse the per-run mocap CSVs (centroids, body→world rotations, roles) |
 | `scripts/calibrate_thor_magni_frames.py` | Evidence for the frame conventions (robot forward = body +X at cos ≈ 0.999; helmet facing = body ±X with per-helmet mounting sign; footprint scale from marker spread) |
-| `riskam/mocap_gt.py` | GT kinematics per (frame, participant): robot-frame `x/y`, relative velocity, closing speed, `t_cpa`, `d_min`, trajectory hazard (`DARKO_KINECT` platform params), head-facing awareness reference |
+| `riskam/riskam/mocap_gt.py` | GT kinematics per (frame, participant): robot-frame `x/y`, relative velocity, closing speed, `t_cpa`, `d_min`, trajectory hazard (`DARKO_KINECT` platform params), head-facing awareness reference |
 | `scripts/build_thor_magni_gt.py` | All runs → `ml_datasets/thor_magni/gt/<file_id>.csv.gz` + meta JSON (facing signs, tracking coverage, params, provenance) |
 
 Setup: extract the Zenodo `THOR_MAGNI.zip` anywhere and symlink it:
@@ -190,7 +190,7 @@ The CoreSense RoboCup @ Home 2024 dataset (Eindhoven; same TIAGo family,
 `gpsr_1/2`, `receptionist_1/2`, `restaurant_1`, `stickler_1/2`, `storing_2`
 (storing has no try-1 recording).
 
-Differences from 2023, all handled by `riskam/data/extract_cs_robocup.py`:
+Differences from 2023, all handled by `riskam/riskam/data/extract_cs_robocup.py`:
 
 - depth frames are stored as lossless **16-bit PNGs** (still raw uint16
   millimetres; ~3× smaller than `.npy`);
@@ -229,7 +229,7 @@ shared control in a dense outdoor pedestrian street (Lausanne market,
 dataset in the registry, and the first on a RealSense platform
 (`QOLO_REALSENSE`, `d_safe = 1.5 m`).
 
-The bags are **ROS 1**, read by `riskam/data/extract_crowdbot.py` with the
+The bags are **ROS 1**, read by `riskam/riskam/data/extract_crowdbot.py` with the
 pure-Python `rosbags` library — no ROS installation or Docker wrapper.
 Extracted stream: the forward-facing `/camera_left` RealSense — RGB at
 ~13 Hz, `aligned_depth_to_color` (16UC1 mm → 16-bit PNG, shares the RGB
@@ -258,24 +258,24 @@ metric channel is scored as an early-warning signal.
 
 Components:
 
-- **`riskam/data/run_datasets.py`** — wiring registry for the per-run
+- **`riskam/riskam/data/run_datasets.py`** — wiring registry for the per-run
   RGB-D datasets (raw dirs, run discovery, platform, depth/odom indices,
   camera loaders). Torch-free; scripts import this, never
   `riskam.experiments` (which loads YOLO at import).
-- **`riskam/hindsight.py`** — the oracle. Per-track Savitzky–Golay
+- **`riskam/riskam/hindsight.py`** — the oracle. Per-track Savitzky–Golay
   smoothing (reusing the `mocap_gt` helpers), scene-level future-min
   distance (identity-free events: ByteTrack ID switches cannot hide a
   scene minimum), event cells + `t_to_onset` + lookahead-coverage columns.
   **Circularity firewall**: imports only cache + camera geometry +
   `mocap_gt` smoothing; never the causal scoring stack (pinned by a test).
-- **`riskam/ssm.py`** — ISO/TS 15066-style protective separation distance
+- **`riskam/riskam/ssm.py`** — ISO/TS 15066-style protective separation distance
   (`S_p = v_h(t_r+t_s) + v_r·t_r + C`, worst-case `v_h = 1.6 m/s`) as
   threshold-sweepable per-frame *margin* channels; the awareness-modulated
   variant interpolates `v_h` toward 0.5 m/s under measured awareness.
-- **`riskam/event_table.py`** — one row per frame (ALL frames, unlabelled
+- **`riskam/riskam/event_table.py`** — one row per frame (ALL frames, unlabelled
   included): causal score channels (mirrors `scene_table.py`'s walk, which
   stays frozen for metric_lab) + SSM margins + the oracle block.
-- **`riskam/early_warning.py`** — frame-level ROC/PR AUC per (r, T) cell
+- **`riskam/riskam/early_warning.py`** — frame-level ROC/PR AUC per (r, T) cell
   (all-frames and pre-event-only variants; low-coverage negatives masked),
   sustained-alarm episodes, event recall, lead time, FA/min, and the
   matched-recall headline (worst-case vs awareness-modulated SSM). In

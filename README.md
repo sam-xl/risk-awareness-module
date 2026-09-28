@@ -35,23 +35,34 @@ Full reference docs live in [`docs/`](docs/) ([index](docs/README.md)):
 - **RGB + absolute depth in metres.** The pipeline raises `ValueError` if either is missing — silent zeroing of the dominant proximity sub-score is a safety hazard, not a degradation mode. Depth is near-commodity in mobile robotics (RealSense, Azure Kinect, ZED, Orbbec).
 - **Supported depth sensors.** Defaults are calibrated for active-stereo IR sensors with clean close-range data (RealSense D4xx). Sensors with a hard near-clip dead zone (PrimeSense Xtion / Carmine) are supported via `depth_near_clip_m` — see [`docs/sensors-and-platforms.md`](docs/sensors-and-platforms.md).
 - **Optional inputs.** `cmd_vel` (`geometry_msgs/Twist`) enables path-aware x_offset; ByteTrack track continuity enables the approach sub-score. Absent inputs report `FALLBACK` / `UNAVAILABLE` on the diagnostics topic.
-- **ROS 2.** Rolling-tested; distro-agnostic in principle.
+- **ROS 2 Jazzy or Kilted** (Ubuntu 24.04). Both are verified end-to-end by `scripts/smoke_test_node_macos.sh [jazzy|kilted]` (rosdep → colcon → node + bagger on real frames) and by the [CI workflow](.github/workflows/ros2-build.yml); the packages also build as conda packages for the CoreSense Pixi channel (see [Install and build](#install-and-build)).
 - **Models.** Ultralytics YOLO11n-Pose (`ml_models/yolo11n-pose.pt`); ByteTrack bundled, no extra dependency.
 
 ---
 
 ## Install and build
 
-Clone into the source folder of your colcon workspace and build:
+Clone into the source folder of your colcon workspace, resolve the dependencies declared in the `package.xml` files with rosdep, and build:
 
 ```bash
 cd src   # workspace root/src
 git clone git@github.com:CoreSenseEU/risk-awareness-module.git
 cd ..
+rosdep install --from-paths src --ignore-src -y
 colcon build --packages-select riskam riskam_ros riskam_msgs riskam_bringup
 ```
 
-The ROS build path (colcon → `riskam/setup.py`) is independent of the Python-only path used for offline experiments (see [Python environment](#python-environment-offline-tooling)).
+`rosdep` covers the ROS packages and the apt-packaged Python libraries. The ML runtime is declared as pip keys (`python3-torchvision-pip`, `python3-ultralytics-pip`; Ubuntu 24.04 packages no torch): either let rosdep pip-install them (`apt install python3-pip`, then `PIP_BREAK_SYSTEM_PACKAGES=1 rosdep install ...` on Ubuntu 24.04) or skip those keys and `pip install ultralytics lap` yourself (`lap` is ByteTrack's assignment solver, which ultralytics would otherwise try to install at runtime). The ROS build path (colcon → `riskam/setup.py`) is independent of the Python-only path used for offline experiments (see [Python environment](#python-environment-offline-tooling)).
+
+**Pixi (CoreSense channel).** The repository carries the manifests of the [CoreSense Pixi release workflow](https://coresenseeu.github.io/tutorials/docs/pixi_release.html): `pixi.toml` at the root and next to each `package.xml`, built by `pixi-build-ros` from the `package.xml` metadata. No system ROS installation is needed:
+
+```bash
+pixi install                              # builds the four packages into a local environment
+pixi run start                            # ros2 launch riskam_bringup riskam.launch.py
+pixi publish --target-channel ./output    # conda packages (ros-jazzy-riskam, -msgs, -ros, -bringup)
+```
+
+The manifests target Jazzy; for Kilted replace `jazzy` with `kilted` in the root `pixi.toml`, as the CoreSense guide prescribes.
 
 ## Run the node
 
@@ -62,10 +73,10 @@ ros2 run riskam_ros riskam_node.py --ros-args -p camera_topic:=/your/color/topic
 Or launch node + bagger:
 
 ```bash
-ros2 launch riskam_bringup riskam.launch.py run_logger:=true
+ros2 launch riskam_bringup riskam.launch.py run_bagger:=true
 ```
 
-Parameters live in `riskam_bringup/config/riskam_config.yml`; override at launch via `--ros-args -p name:=value`.
+Parameters live in `riskam_bringup/config/riskam_config.yml`; override at launch via `--ros-args -p name:=value`. The YOLO11n-Pose weights are looked up in `ml_models/` of a source checkout; for an installed copy of the packages (colcon install prefix, Pixi environment) point `RISKAM_ML_MODELS_DIR` at a directory holding `yolo11n-pose.pt` (ultralytics downloads the file there on first use if it is missing).
 
 ## Essential parameters
 
@@ -97,7 +108,7 @@ The defaults below are enough to get a working score; the **complete** parameter
 The short version (full checklist in [`docs/ros-deployment.md`](docs/ros-deployment.md)):
 
 1. **Wire RGB + depth** to `camera_topic` / `depth_topic`.
-2. **Pick or derive your platform calibration** (`d_safe`, `depth_near_clip_m`, `near_clip_valid_frac_max`). Use a shipped preset from [`riskam/platforms.py`](riskam/platforms.py) if your hardware matches (`RIDGEBACK_D435`, `TIAGO_XTION`), else derive from the sensor spec sheet + stopping distance — see [`docs/sensors-and-platforms.md`](docs/sensors-and-platforms.md).
+2. **Pick or derive your platform calibration** (`d_safe`, `depth_near_clip_m`, `near_clip_valid_frac_max`). Use a shipped preset from [`riskam/riskam/platforms.py`](riskam/riskam/platforms.py) if your hardware matches (`RIDGEBACK_D435`, `TIAGO_XTION`), else derive from the sensor spec sheet + stopping distance — see [`docs/sensors-and-platforms.md`](docs/sensors-and-platforms.md).
 3. **Optionally wire `/cmd_vel`** to make x_offset path-aware.
 4. **Watch `/riskam/diagnostics`** for unexpected `fallback` / `unavailable` statuses.
 5. **No hyperparameter sweep needed** — shipped weights are calibrated; the sweep tooling is for research, not deployment.
@@ -134,7 +145,7 @@ uv run --group experiments python scripts/metric_lab.py all # table → fit → 
 
 ## Using RiskAM in a Python file
 
-For non-ROS use (offline analysis, notebooks):
+For non-ROS use (offline analysis, notebooks). The importable package lives in the `riskam/` ROS package directory (`riskam/riskam/`): from the repository root add `riskam/` to `sys.path` (what the scripts and pytest do), or `pip install -e riskam` in a plain virtualenv.
 
 ```python
 import cv2
@@ -174,7 +185,7 @@ annotated = vis.visualize_risk(
 
 ## Python environment (offline tooling)
 
-Tested on Ubuntu 24.04 with ROS 2 rolling. The Python-only workflow (offline experiments, evaluation framework, tests) is managed with [uv](https://docs.astral.sh/uv/); dependencies are declared in `pyproject.toml` and locked in `uv.lock`. The ROS build path is independent.
+The Python-only workflow (offline experiments, evaluation framework, tests) needs no ROS installation and is managed with [uv](https://docs.astral.sh/uv/); dependencies are declared in `pyproject.toml` and locked in `uv.lock`. The ROS build path is independent.
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh   # if uv is not present
@@ -197,7 +208,7 @@ Dataset download, extraction, and the full research workflow are documented in [
 
 ## License
 
-The RiskAM code in this repository is released under the MIT License (see [`LICENSE`](LICENSE)). The perception stage depends on [Ultralytics YOLO11](https://github.com/ultralytics/ultralytics), which is licensed under AGPL-3.0; deployments that distribute the combined system should review the obligations that follow from that dependency.
+The RiskAM library, tooling and documentation (`riskam/`, `scripts/`, `tests/`, `docs/`) are released under the MIT License (see [`LICENSE`](LICENSE); copyright Czech Technical University in Prague). The three ROS 2 integration packages contributed by TU Delft, `riskam_msgs`, `riskam_ros` and `riskam_bringup`, are licensed under the Apache License 2.0, as declared in their `package.xml` and the `LICENSE` file in each directory. The perception stage depends on [Ultralytics YOLO11](https://github.com/ultralytics/ultralytics), which is licensed under AGPL-3.0; deployments that distribute the combined system should review the obligations that follow from that dependency.
 
 ---
 

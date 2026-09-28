@@ -28,3 +28,7 @@ demo_videos/
 
 # Model weights fetched on demand by ultralytics
 *.pt
+
+# Pixi (CoreSense channel build workflow): environments and lock file are local
+.pixi/
+pixi.lock
